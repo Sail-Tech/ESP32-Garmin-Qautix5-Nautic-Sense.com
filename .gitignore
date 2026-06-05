@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# Connect IQ build output (build it locally; .prg is generated)
+garmin_marine_console_q5_v5/bin/
+
+# Arduino build cache
+build/
+*.elf
+*.map
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp

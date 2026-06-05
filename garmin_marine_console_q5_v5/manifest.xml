@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<iq:manifest version="3" xmlns:iq="http://www.garmin.com/xml/connectiq">
+  <iq:application id="9f1c7a3e-4b62-4d18-9a05-2e7b6c4d8f10"
+                  type="watch-app"
+                  name="@Strings.AppName"
+                  entry="MarineConsoleQ5V5App"
+                  launcherIcon="@Drawables.LauncherIcon"
+                  minSdkVersion="3.1.0"
+                  version="5.0.0">
+    <iq:products>
+      <iq:product id="fenix5"/>
+      <iq:product id="quatix5"/>
+    </iq:products>
+    <iq:permissions>
+      <iq:uses-permission id="Sensor"/>
+    </iq:permissions>
+    <iq:languages>
+      <iq:language>eng</iq:language>
+    </iq:languages>
+    <iq:barrels/>
+  </iq:application>
+</iq:manifest>

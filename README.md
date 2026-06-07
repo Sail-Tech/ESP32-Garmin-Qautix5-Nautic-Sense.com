@@ -52,6 +52,9 @@ These are faithful 240×240 round-masked mockups rendered by
   link (same wire protocol), kept as a minimal reference. See its
   [README](esp32_ble_hr_sensor_for_garmin/README.md).
 - **`screens/`** — demo screen mockups + the Pillow renderer.
+- **`hardware/`** — wiring schematic (KiCad-style SVG/PNG + `.kicad_sch`) for the
+  ESP32 with the SN65HVD230 CAN board (NMEA 2000) and a MAX490 RS-422 module
+  (NMEA 0183), plus netlist + BOM. See [hardware/README.md](hardware/README.md).
 
 ## Watch app
 

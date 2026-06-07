@@ -7,6 +7,18 @@
 //  status`, plus the interactive menu (press Enter / 'm').
 // ============================================================================
 
+// -- Watch link transport ----------------------------------------------------
+// How the boat data reaches the watch over BLE:
+//   CFG_LINK_HR     — quatix 5 (no generic BLE): impersonate a native BLE
+//                     heart-rate sensor and multiplex 1 byte/second.
+//   CFG_LINK_NATIVE — Venu 3 and other System 4/5 watches WITH generic BLE:
+//                     expose a custom GATT service, push the whole dataset in
+//                     one frame, and accept commands back (bidirectional).
+#define CFG_LINK_HR        0
+#define CFG_LINK_NATIVE    1
+#define CFG_LINK_MODE      CFG_LINK_HR     // <-- set to CFG_LINK_NATIVE for Venu 3
+#define CFG_NATIVE_TX_MS   500             // native link: send a frame this often
+
 // -- NMEA 0183 (UART2) -------------------------------------------------------
 // Wire the boat's 0183 talker to RX. Listen-only (TX is unused).
 #define CFG_N0183_RX_PIN   16      // ESP32 RX  <- boat 0183 talker

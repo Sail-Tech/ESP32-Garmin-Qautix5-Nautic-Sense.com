@@ -4,14 +4,23 @@
 #include "MarineSource.h"
 #include "LinkProtocol.h"
 #include "BleHrLink.h"
+#include "BleNauticLink.h"
 #include "WifiManager.h"
 
 // source = DEMO (simulado) or REAL (NMEA0183 / NMEA2000 / NMEA-over-WiFi),
 // switchable live from the serial terminal. Defaults come from config.h.
 static MarineSource source;
 static LinkProtocol proto;
-static BleHrLink    bleLink;   // (not 'link': clashes with the POSIX link() function)
 static WifiManager  wifi;
+
+// Watch link transport — chosen at compile time in config.h (CFG_LINK_MODE).
+#if CFG_LINK_MODE == CFG_LINK_NATIVE
+static BleNauticLink nauticLink;          // custom BLE GATT service (Venu 3 etc.)
+  #define LINK nauticLink
+#else
+static BleHrLink     bleLink;             // HR-sensor impersonation (quatix 5)
+  #define LINK bleLink                    // (not 'link': clashes with POSIX link())
+#endif
 
 static const uint32_t HOLD_MS = CFG_HOLD_MS;
 static uint32_t lastByteMs = 0;
@@ -24,6 +33,11 @@ static bool     g_showSnap = false;   // periodic data snapshot (default off)
 static void printMenu() {
   Serial.println();
   Serial.println(F("===== NauticSense Link — Configuration ====="));
+#if CFG_LINK_MODE == CFG_LINK_NATIVE
+  Serial.println(F("  Link transport ......... NATIVE BLE GATT (Venu 3 / generic-BLE watches)"));
+#else
+  Serial.println(F("  Link transport ......... HR sensor (quatix 5)"));
+#endif
   Serial.printf ("  1) Data source ......... %s\n", source.isDemo() ? "DEMO (simulated)" : "REAL (NMEA)");
   Serial.printf ("  2) NMEA0183 ............ %s\n", source.n0183On()   ? "ON" : "off");
   Serial.printf ("  3) NMEA0183 raw echo ... %s\n", source.n0183Echo() ? "ON" : "off");
@@ -99,7 +113,7 @@ void setup() {
   Serial.println(F("ESP32-NauticSense link"));
   wifi.begin();           // WiFi (for NMEA-over-WiFi) — STA/AP per config + NVS
   source.begin();
-  bleLink.begin("ESP32-NauticSense");
+  LINK.begin("ESP32-NauticSense");
   printMenu();
 }
 
@@ -108,9 +122,26 @@ void loop() {
 
   cliService();           // terminal: demo/real, enable/disable interfaces
   wifi.service();         // WiFi auto-reconnect (STA)
-  bleLink.tickLed();      // LED: solid = connected, blink = waiting
+  LINK.tickLed();         // LED: solid = connected, blink = waiting
   source.update(now);     // demo or NMEA -> MarineData
 
+#if CFG_LINK_MODE == CFG_LINK_NATIVE
+  // Native BLE: handle any command from the watch, then push a full frame.
+  uint8_t cmd = nauticLink.takeCommand();
+  if (cmd == CMD_MOB) {
+    Serial.println(F("[cmd] MOB (man overboard) from watch"));
+    // Hook: trigger MOB handling here (mark a waypoint, raise an alarm, etc.).
+  }
+  if (now - lastByteMs >= CFG_NATIVE_TX_MS) {
+    lastByteMs = now;
+    nauticLink.sendData(source.data());
+    if (g_showTx) {
+      Serial.printf("[tx] frame (%d B)   link=%s\n",
+                    NAUTIC_FRAME_LEN, nauticLink.connected() ? "UP" : "down");
+    }
+  }
+#else
+  // HR link: one multiplexed byte per HOLD_MS.
   if (now - lastByteMs >= HOLD_MS) {
     lastByteMs = now;
     uint8_t b = proto.nextByte(source.data());
@@ -122,6 +153,7 @@ void loop() {
                     b, bleLink.connected() ? "UP" : "down");
     }
   }
+#endif
 
   if (g_showSnap && (now - lastSnapMs >= 5000)) {   // human-readable snapshot
     lastSnapMs = now;
@@ -129,7 +161,7 @@ void loop() {
     Serial.println(F("--------------------------------------------------"));
     Serial.printf("  src=%s  link=%s\n",
                   source.isDemo() ? "DEMO" : "REAL",
-                  bleLink.connected() ? "UP (watch reading)" : "down (advertising)");
+                  LINK.connected() ? "UP (watch reading)" : "down (advertising)");
     Serial.printf("  HDG %.0f  COG %.0f  SOG %.1f  DTW %.1f  XTE %.2f  BRG %.0f\n",
                   d.headingTrue, d.cog, d.sog, d.dtw, d.xte, d.bearing);
     Serial.printf("  AWA %.0f  AWS %.1f   TWA %.0f  TWS %.1f   GUST %.1f\n",

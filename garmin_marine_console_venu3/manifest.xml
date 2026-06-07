@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<iq:manifest version="3" xmlns:iq="http://www.garmin.com/xml/connectiq">
+  <iq:application id="b3e1d72a-5c44-4f90-8a16-7d2e9c5a1f23"
+                  type="watch-app"
+                  name="@Strings.AppName"
+                  entry="MarineConsoleVenu3App"
+                  launcherIcon="@Drawables.LauncherIcon"
+                  minApiLevel="3.2.0"
+                  version="1.0.0">
+    <iq:products>
+      <!-- Target: Venu 3 family (round AMOLED, touch, generic BLE). -->
+      <iq:product id="venu3"/>
+      <iq:product id="venu3s"/>
+      <!-- Validation stand-ins (Venu 4, same generic-BLE round-touch family);
+           build locally with one of these if venu3 isn't installed yet. -->
+      <iq:product id="venu441mm"/>
+      <iq:product id="venu445mm"/>
+    </iq:products>
+    <iq:permissions>
+      <!-- Generic BLE central — the whole point of the Venu 3 variant. -->
+      <iq:uses-permission id="BluetoothLowEnergy"/>
+    </iq:permissions>
+    <iq:languages>
+      <iq:language>eng</iq:language>
+    </iq:languages>
+    <iq:barrels/>
+  </iq:application>
+</iq:manifest>

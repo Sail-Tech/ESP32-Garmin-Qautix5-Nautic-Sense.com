@@ -8,7 +8,8 @@ static const uint8_t SCHED[] = {
   F_HDG, F_AWS,   F_TWA,
   F_HDG, F_TWS,   F_GUST,
   F_HDG, F_DEPTH, F_TEMP,
-  F_HDG, F_BATT,  F_FLAGS
+  F_HDG, F_BATT,  F_FLAGS,
+  F_HDG, F_AISBRG, F_AISDIST
 };
 static const int SCHED_N = sizeof(SCHED) / sizeof(SCHED[0]);
 
@@ -33,10 +34,13 @@ uint8_t LinkProtocol::encode(const MarineData& d, uint8_t field) {
     case F_DEPTH: return clampB((int)(d.depthUnderKeel * 4));     // /4
     case F_TEMP:  return clampB((int)(d.waterTemp * 4));          // /4
     case F_BATT:  return clampB(d.battery);                       // direct
+    case F_AISBRG:  return clampB((int)d.aisNearBrg / 2);          // *2 on watch
+    case F_AISDIST: return clampB((int)(d.aisNearDist * 10));      // /10 (max 19.9 NM)
     case F_FLAGS: {
       uint8_t f = 0;
       if (d.anchorAlarm)  { f |= 1; }
       if (d.shallowAlarm) { f |= 2; }
+      if (d.aisAlarm)     { f |= 4; }
       return f;
     }
   }
@@ -58,6 +62,8 @@ bool LinkProtocol::fieldValid(const MarineData& d, uint8_t field) {
     case F_DEPTH: return d.vDepth;
     case F_TEMP:  return d.vTemp;
     case F_BATT:  return d.vBatt;
+    case F_AISBRG:  return d.vAisNear;
+    case F_AISDIST: return d.vAisNear;
     case F_FLAGS: return true;   // alarms always sent
   }
   return false;
@@ -106,6 +112,8 @@ const char* LinkProtocol::fieldName(uint8_t id) {
     case F_DEPTH: return "DEPTH";
     case F_TEMP:  return "TEMP";
     case F_BATT:  return "BATT";
+    case F_AISBRG:  return "AISB";
+    case F_AISDIST: return "AISD";
     case F_FLAGS: return "FLAGS";
   }
   return "?";

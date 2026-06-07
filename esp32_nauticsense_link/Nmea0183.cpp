@@ -1,4 +1,5 @@
 #include "Nmea0183.h"
+#include "AisParser.h"
 #include "config.h"
 #include <math.h>
 #include <string.h>
@@ -11,6 +12,13 @@
 #endif
 
 static inline float wrap360f(float d) { d = fmodf(d, 360.0f); return d < 0 ? d + 360.0f : d; }
+
+// NMEA lat/lon "ddmm.mmmm" (or "dddmm.mmmm") → decimal degrees.
+static float nmeaToDeg(float v) {
+  float deg = floorf(v / 100.0f);
+  float min = v - deg * 100.0f;
+  return deg + min / 60.0f;
+}
 
 // XOR checksum of the bytes between '$' and '*'.
 static uint8_t nmeaChecksum(const char* body) {   // body without '$' and '*cs'
@@ -70,6 +78,13 @@ void Nmea0183::poll() {
 }
 
 void Nmea0183::handleLine(char* line) {
+  // AIS sentences (!AIVDM / !AIVDO) → forward to the AIS parser.
+  if (line[0] == '!') {
+    if (_echo) { Serial.print(F("[rx] ")); Serial.println(line); }
+    if (_ais) { _ais->handleSentence(line, millis()); _good++; _lastRx = millis(); }
+    else      { _bad++; }
+    return;
+  }
   if (line[0] != '$' || strlen(line) < 7) { _bad++; return; }
   if (_echo) { Serial.print(F("[rx] ")); Serial.println(line); }
   char* star = strrchr(line, '*');
@@ -102,11 +117,18 @@ void Nmea0183::handleLine(char* line) {
     if (isfinite(cog)) { d->cog = wrap360f(cog); d->vCog = true; }
     if (isfinite(sog)) { d->sog = sog;            d->vSog = true; }
 
-  } else if (!strncmp(t, "RMC", 3)) {       // fallback COG/SOG
+  } else if (!strncmp(t, "RMC", 3)) {       // fallback COG/SOG + own position
     float sog = fieldFloat(line, 7);
     float cog = fieldFloat(line, 8);
     if (isfinite(sog)) { d->sog = sog;            d->vSog = true; }
     if (isfinite(cog)) { d->cog = wrap360f(cog);  d->vCog = true; }
+    float la = fieldFloat(line, 3); char ns = fieldChar(line, 4);   // own position
+    float lo = fieldFloat(line, 5); char ew = fieldChar(line, 6);
+    if (isfinite(la) && isfinite(lo)) {
+      float latd = nmeaToDeg(la); if (ns == 'S') { latd = -latd; }
+      float lond = nmeaToDeg(lo); if (ew == 'W') { lond = -lond; }
+      d->lat = latd; d->lon = lond; d->vPos = true;
+    }
 
   } else if (!strncmp(t, "MWV", 3)) {       // wind: angle, R/T, speed, units, status
     if (fieldChar(line, 5) == 'A') {        // status valid

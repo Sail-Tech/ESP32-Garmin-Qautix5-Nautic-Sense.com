@@ -41,6 +41,11 @@ class DataModel {
     var anchorAlarm;    // bool
     var shallowAlarm;   // bool
 
+    // ---- AIS (full target list — the native BLE link streams every target) ----
+    // Each entry: [mmsi, brgDeg, distNm, cogDeg, lastSeenMs].
+    var aisTargets;     // array
+    var aisAlarm;       // bool, a target is inside the guard ring
+
     // ---- STATUS ----
     var linkState;      // "ON" when the ESP32 feed is fresh, else "OFF"
     var lastUpdateMs;   // System.getTimer() at last touch(), or null
@@ -70,6 +75,9 @@ class DataModel {
         battery = null;
         anchorAlarm = false;
         shallowAlarm = false;
+
+        aisTargets = [];
+        aisAlarm = false;
 
         linkState = "OFF";
         lastUpdateMs = null;

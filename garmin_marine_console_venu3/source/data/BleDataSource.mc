@@ -29,11 +29,14 @@ class BleDataSource extends DataSource {
     const SVC  = "4e415554-4943-5345-4e53-450000000001";
     const DATA = "4e415554-4943-5345-4e53-450000000002";
     const CMD  = "4e415554-4943-5345-4e53-450000000003";
+    const AIS  = "4e415554-4943-5345-4e53-450000000004";
     const DEVICE_NAME = "ESP32-NauticSense";
 
-    const HEADER  = 0xA5;
-    const STALE_MS = 8000;
-    const CMD_MOB  = 0x01;
+    const HEADER     = 0xA5;
+    const AIS_HEADER = 0xA6;
+    const STALE_MS   = 8000;
+    const AIS_TARGET_MS = 20000;   // drop an AIS target not refreshed in this time
+    const CMD_MOB    = 0x01;
 
     // validity bit positions (must match NauticVBit on the ESP32)
     const VB_HDG=0; const VB_COG=1; const VB_SOG=2; const VB_XTE=3; const VB_BRG=4;
@@ -45,10 +48,13 @@ class BleDataSource extends DataSource {
     var _svcUuid;
     var _dataUuid;
     var _cmdUuid;
+    var _aisUuid;
     var _device;
     var _dataChar;
     var _cmdChar;
+    var _aisChar;
     var _profileReady = false;
+    var _aisArmed = false;
     var _lastRxMs = null;
 
     function initialize(model) {
@@ -60,6 +66,7 @@ class BleDataSource extends DataSource {
         _svcUuid  = Ble.stringToUuid(SVC);
         _dataUuid = Ble.stringToUuid(DATA);
         _cmdUuid  = Ble.stringToUuid(CMD);
+        _aisUuid  = Ble.stringToUuid(AIS);
         _delegate = new NauticBleDelegate(self);
         Ble.setDelegate(_delegate);
         registerProfile();
@@ -84,6 +91,7 @@ class BleDataSource extends DataSource {
             :uuid => _svcUuid,
             :characteristics => [
                 { :uuid => _dataUuid, :descriptors => [ Ble.cccdUuid() ] },
+                { :uuid => _aisUuid,  :descriptors => [ Ble.cccdUuid() ] },
                 { :uuid => _cmdUuid }
             ]
         };
@@ -125,7 +133,21 @@ class BleDataSource extends DataSource {
         _model = model;
         if (_lastRxMs == null || (System.getTimer() - _lastRxMs) > STALE_MS) {
             model.reset();
+        } else {
+            pruneAis();   // drop AIS targets we haven't heard about recently
         }
+    }
+
+    // Remove AIS targets older than AIS_TARGET_MS (entry = [mmsi,brg,dist,cog,ms]).
+    function pruneAis() {
+        if (_model.aisTargets == null || _model.aisTargets.size() == 0) { return; }
+        var now = System.getTimer();
+        var kept = [];
+        for (var i = 0; i < _model.aisTargets.size(); i++) {
+            var e = _model.aisTargets[i];
+            if (now - e[4] <= AIS_TARGET_MS) { kept.add(e); }
+        }
+        _model.aisTargets = kept;
     }
 
     // Send MOB to the ESP32 over the command characteristic (bidirectional).
@@ -193,11 +215,26 @@ class BleDataSource extends DataSource {
             if (svc == null) { return; }
             _dataChar = svc.getCharacteristic(_dataUuid);
             _cmdChar  = svc.getCharacteristic(_cmdUuid);
+            _aisChar  = svc.getCharacteristic(_aisUuid);
+            _aisArmed = false;
             if (_dataChar != null) {
                 var cccd = _dataChar.getDescriptor(Ble.cccdUuid());
-                if (cccd != null) {
-                    cccd.requestWrite([0x01, 0x00]b);   // enable notifications
-                }
+                if (cccd != null) { cccd.requestWrite([0x01, 0x00]b); }   // notifications on
+            }
+            // The AIS CCCD is enabled after the data one (onDescriptorWrite chains it).
+        } catch (ex) {
+        }
+    }
+
+    // Enable AIS notifications once the data CCCD write has completed (one
+    // outstanding GATT operation at a time on Connect IQ).
+    function enableAisNotify() {
+        if (_aisArmed) { return; }   // one-shot: this fires again for its own write
+        _aisArmed = true;
+        try {
+            if (_aisChar != null) {
+                var cccd = _aisChar.getDescriptor(Ble.cccdUuid());
+                if (cccd != null) { cccd.requestWrite([0x01, 0x00]b); }
             }
         } catch (ex) {
         }
@@ -226,10 +263,41 @@ class BleDataSource extends DataSource {
         var flags = value[30];
         _model.anchorAlarm  = (flags & 0x01) != 0;
         _model.shallowAlarm = (flags & 0x02) != 0;
+        _model.aisAlarm     = (flags & 0x04) != 0;
 
         _model.linkState = "ON";
         _model.touch();
         _lastRxMs = System.getTimer();
+    }
+
+    // Route an incoming notification to the right decoder by characteristic.
+    function onNotify(characteristic, value) {
+        if (characteristic == null || value == null) { return; }
+        if (characteristic.getUuid().equals(_aisUuid)) {
+            onAisFrame(value);
+        } else {
+            onDataFrame(value);
+        }
+    }
+
+    // One AIS target (15-byte frame); upsert into the model list by MMSI.
+    //   0 hdr 0xA6  1 count  2 idx  3..6 mmsi  7..8 brg  9..10 dist*100  11..12 cog  13..14 sog*10
+    function onAisFrame(value) {
+        if (value.size() < 15 || value[0] != AIS_HEADER) { return; }
+        var mmsi = value[3] | (value[4] << 8) | (value[5] << 16) | (value[6] << 24);
+        var brg  = u16(value, 7);
+        var dist = u16(value, 9) / 100.0;
+        var cog  = u16(value, 11);
+        var now  = System.getTimer();
+        if (_model.aisTargets == null) { _model.aisTargets = []; }
+        // replace existing entry for this MMSI, else append
+        for (var i = 0; i < _model.aisTargets.size(); i++) {
+            if (_model.aisTargets[i][0] == mmsi) {
+                _model.aisTargets[i] = [mmsi, brg, dist, cog, now];
+                return;
+            }
+        }
+        _model.aisTargets.add([mmsi, brg, dist, cog, now]);
     }
 
     // ---- little-endian readers ----
@@ -269,6 +337,12 @@ class NauticBleDelegate extends Ble.BleDelegate {
     }
 
     function onCharacteristicChanged(characteristic, value) {
-        _src.onDataFrame(value);
+        _src.onNotify(characteristic, value);
+    }
+
+    // After the data CCCD write completes, enable the AIS CCCD (one GATT
+    // operation may be outstanding at a time on Connect IQ).
+    function onDescriptorWrite(descriptor, status) {
+        _src.enableAisNotify();
     }
 }

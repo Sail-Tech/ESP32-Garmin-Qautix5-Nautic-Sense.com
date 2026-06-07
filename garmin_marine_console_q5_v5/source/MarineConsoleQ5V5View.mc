@@ -103,7 +103,7 @@ class MarineConsoleQ5V5View extends WatchUi.View {
 
         // Vibrate ONCE per alarm + light up. Re-arm only after the condition
         // has been clear for a while, so flickering data doesn't buzz again.
-        var active = (_model.anchorAlarm || _model.shallowAlarm);
+        var active = (_model.anchorAlarm || _model.shallowAlarm || _model.aisAlarm);
         if (active) {
             _clearSinceMs = null;
             if (!_alarmVibrated) {
@@ -157,7 +157,7 @@ class MarineConsoleQ5V5View extends WatchUi.View {
 
     // An unacknowledged alarm is currently active → show the overlay.
     function alarmShowing() {
-        return (_model.anchorAlarm || _model.shallowAlarm) && !_alarmAck;
+        return (_model.anchorAlarm || _model.shallowAlarm || _model.aisAlarm) && !_alarmAck;
     }
 
     // START button dispatch: dismiss the alarm overlay if one is up, else
@@ -185,12 +185,21 @@ class MarineConsoleQ5V5View extends WatchUi.View {
     function drawAlarmOverlay(dc) {
         dc.setColor(Gfx.COLOR_RED, Gfx.COLOR_RED);
         dc.fillRectangle(0, 0, dc.getWidth(), dc.getHeight());
-        var anchor = _model.anchorAlarm;
+        var l1; var l2; var detail = null;
+        if (_model.anchorAlarm) {
+            l1 = "ANCHOR"; l2 = "DRAG";
+        } else if (_model.shallowAlarm) {
+            l1 = "SHALLOW"; l2 = "WATER";
+            detail = "DEPTH " + fmt1(_model.depthUnderKeel) + " m";
+        } else {
+            l1 = "AIS"; l2 = "TARGET";
+            detail = fmt1(_model.aisNearDist) + " nm  " + fmtInt3(_model.aisNearBrg) + "°";
+        }
         txt(dc, 120, 38,  Gfx.FONT_SMALL,  "! ALARM !", Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
-        txt(dc, 120, 70,  Gfx.FONT_LARGE,  anchor ? "ANCHOR" : "SHALLOW", Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
-        txt(dc, 120, 110, Gfx.FONT_LARGE,  anchor ? "DRAG" : "WATER", Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
-        if (!anchor) {
-            txt(dc, 120, 152, Gfx.FONT_SMALL, "DEPTH " + fmt1(_model.depthUnderKeel) + " m", Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
+        txt(dc, 120, 70,  Gfx.FONT_LARGE,  l1, Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
+        txt(dc, 120, 110, Gfx.FONT_LARGE,  l2, Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
+        if (detail != null) {
+            txt(dc, 120, 152, Gfx.FONT_SMALL, detail, Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
         }
         txt(dc, 120, 196, Gfx.FONT_XTINY, "START = OK", Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
     }
@@ -571,22 +580,31 @@ class MarineConsoleQ5V5View extends WatchUi.View {
         dc.setColor(OC_LINE, Gfx.COLOR_TRANSPARENT);
         dc.drawLine(cx, cy, cx, cy - R);
 
-        // demo targets: [trueBearing, distNm, courseTrue]
-        var tg = [
-            [ 30, 1.5, 210],
-            [ 75, 3.0, 290],
-            [140, 4.5,  10],
-            [200, 7.0,  90],
-            [290, 9.0, 180],
-            [330, 6.0,  45]
-        ];
         var scale = R / 10.0;
-        var j = 0;
-        while (j < 6) {
-            var brg = tg[j][0];
-            var dist = tg[j][1];
-            var crs = tg[j][2];
-            if (dist <= 10) {
+        if (isOnline()) {
+            // REAL: the HR link carries only the nearest target.
+            if (_model.aisNearDist != null && _model.aisNearBrg != null && _model.aisNearDist <= 10) {
+                var a = (_model.aisNearBrg - hdg - 90) * Math.PI / 180.0;
+                var rad = _model.aisNearDist * scale;
+                var tx = cx + (Math.cos(a) * rad);
+                var ty = cy + (Math.sin(a) * rad);
+                if (_model.aisNearDist <= 5.0) {
+                    drawAisTriangle(dc, tx, ty, 0, OC_CYAN);
+                } else {
+                    dc.setColor(OC_WHITE, Gfx.COLOR_TRANSPARENT);
+                    dc.fillCircle(tx, ty, 3);
+                }
+                txt(dc, cx, cy + 38, Gfx.FONT_XTINY,
+                    "NEAR " + fmt1(_model.aisNearDist) + "nm", Gfx.TEXT_JUSTIFY_CENTER, OC_CYAN);
+            } else {
+                txt(dc, cx, cy + 38, Gfx.FONT_XTINY, "NO AIS", Gfx.TEXT_JUSTIFY_CENTER, OC_MUTED);
+            }
+        } else {
+            // OFFLINE: demo targets just to show the standard layout.
+            var tg = [[30,1.5,210],[75,3.0,290],[140,4.5,10],[200,7.0,90],[290,9.0,180],[330,6.0,45]];
+            var j = 0;
+            while (j < 6) {
+                var brg = tg[j][0]; var dist = tg[j][1]; var crs = tg[j][2];
                 var a = (brg - hdg - 90) * Math.PI / 180.0;
                 var rad = dist * scale;
                 var tx = cx + (Math.cos(a) * rad);
@@ -597,8 +615,8 @@ class MarineConsoleQ5V5View extends WatchUi.View {
                     dc.setColor(OC_WHITE, Gfx.COLOR_TRANSPARENT);
                     dc.fillCircle(tx, ty, 3);
                 }
+                j += 1;
             }
-            j += 1;
         }
 
         // own ship (green triangle, bow up) at centre

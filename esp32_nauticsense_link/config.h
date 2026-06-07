@@ -43,6 +43,13 @@
 #define CFG_STALE_MS       8000    // clear everything if the bus(es) go quiet this long
 #define CFG_HOLD_MS        2000    // dwell time of each HR-protocol byte
 
+// -- AIS (proximity guard alarm) ---------------------------------------------
+// Raise an alarm when an AIS target comes within this many nautical miles.
+// 0 = off. Selectable at runtime from the terminal menu (off / 2 / 5 / 10 NM).
+#define CFG_AIS_GUARD_NM   0
+#define CFG_AIS_TIMEOUT_MS 120000  // drop a target not heard from in this time
+#define CFG_AIS_MAX        24      // max simultaneously tracked targets
+
 // -- WiFi (for receiving NMEA over WiFi) -------------------------------------
 // Boot mode: 0=AP, 1=STA (join a network), 2=AP+STA.
 // To receive NMEA from a gateway/multiplexer you normally use STA.

@@ -41,6 +41,11 @@ class DataModel {
     var anchorAlarm;    // bool
     var shallowAlarm;   // bool
 
+    // ---- AIS (nearest target only — the HR link can't carry a full list) ----
+    var aisNearBrg;     // deg true, bearing to nearest target (null = none)
+    var aisNearDist;    // nautical miles to nearest target
+    var aisAlarm;       // bool, a target is inside the guard ring
+
     // ---- STATUS ----
     var linkState;      // "ON" when the ESP32 feed is fresh, else "OFF"
     var lastUpdateMs;   // System.getTimer() at last touch(), or null
@@ -70,6 +75,10 @@ class DataModel {
         battery = null;
         anchorAlarm = false;
         shallowAlarm = false;
+
+        aisNearBrg = null;
+        aisNearDist = null;
+        aisAlarm = false;
 
         linkState = "OFF";
         lastUpdateMs = null;

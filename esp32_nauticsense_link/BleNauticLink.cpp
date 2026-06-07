@@ -5,6 +5,7 @@
 #include <math.h>
 
 static NimBLECharacteristic* s_dataChar = nullptr;
+static NimBLECharacteristic* s_aisChar  = nullptr;
 static bool                  s_connected = false;
 static volatile uint8_t      s_lastCmd   = CMD_NONE;
 
@@ -63,6 +64,7 @@ void BleNauticLink::begin(const char* deviceName) {
 
   NimBLEService* svc = server->createService(NAUTIC_SVC_UUID);
   s_dataChar = svc->createCharacteristic(NAUTIC_DATA_UUID, NIMBLE_PROPERTY::NOTIFY);
+  s_aisChar  = svc->createCharacteristic(NAUTIC_AIS_UUID,  NIMBLE_PROPERTY::NOTIFY);
   NimBLECharacteristic* cmd =
       svc->createCharacteristic(NAUTIC_CMD_UUID,
                                 NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
@@ -111,10 +113,26 @@ void BleNauticLink::sendData(const MarineData& d) {
   putU16(&f[25], clampU16(d.depthUnderKeel * 100.0f));
   putI16(&f[27], clampI16(d.waterTemp * 100.0f));
   f[29] = (uint8_t)(d.battery < 0 ? 0 : (d.battery > 100 ? 100 : d.battery));
-  f[30] = (d.anchorAlarm ? 0x01 : 0) | (d.shallowAlarm ? 0x02 : 0);
+  f[30] = (d.anchorAlarm ? 0x01 : 0) | (d.shallowAlarm ? 0x02 : 0) | (d.aisAlarm ? 0x04 : 0);
 
   s_dataChar->setValue(f, NAUTIC_FRAME_LEN);
   if (s_connected) { s_dataChar->notify(); }
+}
+
+void BleNauticLink::sendAisTarget(uint8_t idx, uint8_t count, uint32_t mmsi,
+                                  float brgDeg, float distNm, float cogDeg, float sogKn) {
+  if (s_aisChar == nullptr) { return; }
+  uint8_t f[NAUTIC_AIS_LEN];
+  f[0] = NAUTIC_AIS_HEADER;
+  f[1] = count;
+  f[2] = idx;
+  f[3] = mmsi & 0xFF; f[4] = (mmsi >> 8) & 0xFF; f[5] = (mmsi >> 16) & 0xFF; f[6] = (mmsi >> 24) & 0xFF;
+  putU16(&f[7],  clampU16(brgDeg));
+  putU16(&f[9],  clampU16(distNm * 100.0f));
+  putU16(&f[11], clampU16(cogDeg));
+  putU16(&f[13], clampU16(sogKn * 10.0f));
+  s_aisChar->setValue(f, NAUTIC_AIS_LEN);
+  if (s_connected) { s_aisChar->notify(); }
 }
 
 bool BleNauticLink::connected() const { return s_connected; }

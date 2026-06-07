@@ -4,6 +4,9 @@
 #include "Nmea0183.h"
 #include "Nmea2000Reader.h"
 #include "NmeaWifi.h"
+#include "AisTarget.h"
+#include "AisParser.h"
+#include "config.h"
 
 class Stream;
 
@@ -29,6 +32,11 @@ public:
   bool nmeaWifiOn() const { return _nmeaWifiOn; }
   bool n0183Echo()  const { return _n0183.echo(); }
 
+  // AIS: tracked-target list (for the native BLE link) + guard-ring alarm.
+  const AisTargets& ais() const { return _ais; }
+  int  guardNm() const { return _guardNm; }
+  void setGuardNm(int nm) { _guardNm = nm; }   // 0 = off, else 2/5/10 NM
+
   void printStatus(Stream& s);
 
 private:
@@ -36,9 +44,14 @@ private:
   Nmea0183       _n0183;
   Nmea2000Reader _n2k;
   NmeaWifi       _nmeaWifi;
+  AisTargets     _ais;
+  AisParser      _aisParser;
   bool _useDemo    = true;
   bool _n0183On    = true;
   bool _n2kOn      = false;
   bool _n2kBegun   = false;
   bool _nmeaWifiOn = false;
+  int  _guardNm    = CFG_AIS_GUARD_NM;
+  void seedDemoAis(uint32_t now);
+  void updateAisSummary();
 };

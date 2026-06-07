@@ -51,6 +51,7 @@ to toggle each option:
   5) [tx] byte log ....... off          (per-BLE-byte log)
   6) Data snapshot (5s) .. off          (HDG/COG/DEPTH/... values)
   7) NMEA over WiFi ...... on / off      (NMEA0183 over TCP/UDP)
+  8) AIS guard alarm ..... off/2/5/10 NM (proximity alert; press 8 to cycle)
 ```
 
 By **default the terminal is quiet**: the recurring outputs (5 and 6) are
@@ -133,6 +134,23 @@ Receive **NMEA0183 sentences over IP** from a WiFi gateway/multiplexer.
 
 All buses (UART, CAN, WiFi) feed the **same** `MarineData`; whichever has data
 wins. If they all go quiet for > `CFG_STALE_MS` (8 s), everything resets to "---".
+
+### AIS targets
+`!AIVDM` / `!AIVDO` sentences (on the UART or WiFi NMEA stream — an AIS receiver
+usually runs at **38400** baud) are decoded by `AisParser` (position reports:
+message types 1/2/3/18). Targets are placed relative to **own position** (from
+`RMC`) and tracked in `AisTargets`.
+
+- **Native BLE link (Venu 3):** every target is streamed (one per frame,
+  rotating) over a dedicated AIS characteristic → the watch plots them all.
+- **HR link (quatix 5):** only the **nearest** target's bearing/distance fit the
+  1-byte channel, so the watch shows just the closest one.
+- **Guard alarm:** menu option **8** cycles the proximity ring **off → 2 → 5 →
+  10 NM**. When a target comes within the set range, the AIS alarm flag is sent
+  to the watch (full-screen overlay + vibrate, like the shallow alarm).
+
+In **demo** mode a handful of synthetic targets are generated around a fixed
+own-position, so the AIS page shows live targets through the real pipeline.
 
 ## Pairing on the quatix 5
 

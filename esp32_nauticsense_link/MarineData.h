@@ -25,6 +25,20 @@ struct MarineData {
   bool  anchorAlarm    = false;
   bool  shallowAlarm   = false;
 
+  // OWN POSITION (from RMC/GGA) — needed to place AIS targets relative to us.
+  float lat = 0;            // deg, + = N
+  float lon = 0;            // deg, + = E
+  bool  vPos = false;
+
+  // AIS summary — the closest target (carried on the HR link to the quatix 5)
+  // plus the proximity-guard alarm. The full target list lives in AisTargets
+  // (sent over the native BLE link to the Venu 3).
+  float aisNearBrg  = 0;    // deg true, bearing to nearest target
+  float aisNearDist = 0;    // nautical miles to nearest target
+  bool  vAisNear    = false;
+  uint8_t aisCount  = 0;    // number of tracked targets
+  bool  aisAlarm    = false; // a target is inside the guard ring
+
   // Per-field validity. A field is only transmitted (and shown on the watch)
   // when valid; otherwise the watch keeps showing "---". This matters when a
   // sensor is absent on the boat's NMEA bus — sending 0 would read as a real

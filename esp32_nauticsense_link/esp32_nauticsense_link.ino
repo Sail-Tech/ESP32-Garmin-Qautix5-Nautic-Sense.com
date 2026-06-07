@@ -49,7 +49,12 @@ static void printMenu() {
   Serial.printf ("  5) [tx] byte log ....... %s\n", g_showTx   ? "ON" : "off");
   Serial.printf ("  6) Data snapshot (5s) .. %s\n", g_showSnap ? "ON" : "off");
   Serial.printf ("  7) NMEA over WiFi ...... %s\n", source.nmeaWifiOn() ? "ON" : "off");
-  Serial.println(F("  Type 1-7 to toggle  ·  Enter or 'm' for this menu"));
+  if (source.guardNm() > 0) {
+    Serial.printf ("  8) AIS guard alarm ..... %d NM   (%d targets)\n", source.guardNm(), source.ais().count());
+  } else {
+    Serial.printf ("  8) AIS guard alarm ..... off     (%d targets)\n", source.ais().count());
+  }
+  Serial.println(F("  Type 1-8 to toggle (8 cycles off/2/5/10 NM)  ·  Enter or 'm' for this menu"));
   Serial.println(F("  WiFi: 'wifi scan' · 'wifi connect <ssid> <pass>' · 'wifi mode ap|sta|both' · 'wifi status'"));
   Serial.println(F("============================================"));
 }
@@ -80,6 +85,11 @@ static void cliExec(char* c) {
   else if (!strcmp(c, "5")) { g_showTx   = !g_showTx;                   printMenu(); }
   else if (!strcmp(c, "6")) { g_showSnap = !g_showSnap;                 printMenu(); }
   else if (!strcmp(c, "7")) { source.setNmeaWifi(!source.nmeaWifiOn()); printMenu(); }
+  else if (!strcmp(c, "8")) {
+    int g = source.guardNm();
+    g = (g == 0) ? 2 : (g == 2) ? 5 : (g == 5) ? 10 : 0;   // off -> 2 -> 5 -> 10 -> off
+    source.setGuardNm(g); printMenu();
+  }
   else if (!strcmp(c, "m") || !strcmp(c, "menu") || !strcmp(c, "help") || !strcmp(c, "?")) { printMenu(); }
   else if (!strncmp(c, "wifi ", 5)) { handleWifiCmd(c + 5); }
   // text aliases
@@ -135,9 +145,22 @@ void loop() {
   if (now - lastByteMs >= CFG_NATIVE_TX_MS) {
     lastByteMs = now;
     nauticLink.sendData(source.data());
+    // Stream one AIS target per tick (rotating through the list).
+    static uint8_t aisIdx = 0;
+    int n = source.ais().count();
+    if (n > 0) {
+      if (aisIdx >= n) { aisIdx = 0; }
+      uint32_t mmsi; float brg, dist, cog, sog;
+      if (source.ais().relative(aisIdx, source.data().lat, source.data().lon,
+                                mmsi, brg, dist, cog, sog)) {
+        nauticLink.sendAisTarget(aisIdx, (uint8_t)n, mmsi, brg, dist, cog, sog);
+      }
+      aisIdx++;
+    }
     if (g_showTx) {
-      Serial.printf("[tx] frame (%d B)   link=%s\n",
-                    NAUTIC_FRAME_LEN, nauticLink.connected() ? "UP" : "down");
+      Serial.printf("[tx] frame (%d B) + %d AIS   link=%s\n",
+                    NAUTIC_FRAME_LEN, source.ais().count(),
+                    nauticLink.connected() ? "UP" : "down");
     }
   }
 #else

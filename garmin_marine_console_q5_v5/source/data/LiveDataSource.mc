@@ -33,7 +33,9 @@ class LiveDataSource extends DataSource {
     const F_DEPTH = 9;
     const F_TEMP  = 10;
     const F_BATT  = 11;
-    const F_FLAGS = 12;
+    const F_AISBRG  = 12;
+    const F_AISDIST = 13;
+    const F_FLAGS = 14;
 
     var _pendingTag = -1;
     var _lastRxMs = null;
@@ -122,9 +124,14 @@ class LiveDataSource extends DataSource {
             model.waterTemp = v / 4.0;
         } else if (id == F_BATT) {
             model.battery = v;
+        } else if (id == F_AISBRG) {
+            model.aisNearBrg = v * 2;
+        } else if (id == F_AISDIST) {
+            model.aisNearDist = v / 10.0;
         } else if (id == F_FLAGS) {
             model.anchorAlarm = (v & 1) != 0;
             model.shallowAlarm = (v & 2) != 0;
+            model.aisAlarm = (v & 4) != 0;
         }
     }
 }

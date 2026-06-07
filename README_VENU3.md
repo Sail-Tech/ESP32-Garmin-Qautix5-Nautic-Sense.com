@@ -28,6 +28,7 @@ A second BLE transport sits alongside the HR one, chosen at compile time:
 - **`BleNauticLink.h/.cpp`** — NimBLE peripheral exposing:
   - Service `4e415554-4943-5345-4e53-450000000001`
   - Data char `…0002` (NOTIFY) — pushes the whole `MarineData` as one binary frame.
+  - AIS char `…0004` (NOTIFY) — streams every AIS target (one per frame, rotating).
   - Cmd char `…0003` (WRITE) — receives commands from the watch (MOB).
 - The `.ino` sends a full frame every `CFG_NATIVE_TX_MS` (500 ms) and logs any
   command received. The data layer (NMEA 0183 / 2000 / WiFi, demo) is unchanged.

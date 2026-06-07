@@ -36,9 +36,19 @@
 #define NAUTIC_SVC_UUID   "4e415554-4943-5345-4e53-450000000001"
 #define NAUTIC_DATA_UUID  "4e415554-4943-5345-4e53-450000000002"
 #define NAUTIC_CMD_UUID   "4e415554-4943-5345-4e53-450000000003"
+#define NAUTIC_AIS_UUID   "4e415554-4943-5345-4e53-450000000004"
 
 #define NAUTIC_FRAME_LEN  31
 #define NAUTIC_HEADER     0xA5
+
+// AIS target frame (one target per notification), little-endian:
+//   0      header 0xA6
+//   1      total target count        2      this target index
+//   3..6   MMSI (u32)
+//   7..8   bearing  u16 deg true     9..10  distance u16 nm * 100
+//   11..12 COG u16 deg               13..14 SOG u16 kn * 10
+#define NAUTIC_AIS_LEN    15
+#define NAUTIC_AIS_HEADER 0xA6
 
 // validity bitmask bit positions (match MarineData v* order)
 enum NauticVBit {
@@ -57,7 +67,9 @@ enum NauticCmd {
 class BleNauticLink {
 public:
   void begin(const char* deviceName);
-  void sendData(const MarineData& d);   // build + notify one frame
+  void sendData(const MarineData& d);   // build + notify one instrument frame
+  void sendAisTarget(uint8_t idx, uint8_t count, uint32_t mmsi,
+                     float brgDeg, float distNm, float cogDeg, float sogKn);
   bool connected() const;
   void tickLed();                       // solid = connected, blink = advertising
 

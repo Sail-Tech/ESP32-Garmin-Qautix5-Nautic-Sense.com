@@ -17,12 +17,47 @@ void MarineSource::begin() {
   _nmeaWifi.begin(&_data);
   _nmeaWifiOn = CFG_BOOT_NMEAWIFI;
   _nmeaWifi.setEnabled(_nmeaWifiOn);
+
+  // AIS: same parser fed by the UART and WiFi NMEA streams; uses own position.
+  _aisParser.attach(&_ais, &_data);
+  _n0183.attachAis(&_aisParser);
+  _nmeaWifi.attachAis(&_aisParser);
+}
+
+// A handful of synthetic AIS targets around the demo own-position, so the AIS
+// page shows real targets through the actual pipeline (not a hardcoded plot).
+void MarineSource::seedDemoAis(uint32_t now) {
+  // offsets in degrees from own pos (~1 NM ≈ 0.0167° lat); varied bearings.
+  static const float dlat[5] = {  0.020f,  0.045f, -0.060f, -0.015f,  0.080f };
+  static const float dlon[5] = {  0.025f, -0.050f,  0.010f, -0.090f,  0.040f };
+  static const float cog [5] = {  210,     290,     10,      90,      180    };
+  static const float sog [5] = {  8.2f,    4.1f,    12.0f,   0.0f,    6.5f   };
+  for (int i = 0; i < 5; i++) {
+    _ais.upsert(100 + i, _data.lat + dlat[i], _data.lon + dlon[i], cog[i], sog[i], now);
+  }
+}
+
+// Fill the AIS summary fields (nearest target + guard alarm + count).
+void MarineSource::updateAisSummary() {
+  _data.aisCount = (uint8_t)_ais.count();
+  float brg, dist;
+  if (_data.vPos && _ais.nearest(_data.lat, _data.lon, brg, dist)) {
+    _data.aisNearBrg = brg;
+    _data.aisNearDist = dist;
+    _data.vAisNear = true;
+    _data.aisAlarm = (_guardNm > 0 && dist <= (float)_guardNm);
+  } else {
+    _data.vAisNear = false;
+    _data.aisAlarm = false;
+  }
 }
 
 void MarineSource::update(uint32_t nowMs) {
   if (_useDemo) {
     _demo.update(nowMs);
     _data = _demo.data();          // copy synthetic data into our model
+    seedDemoAis(nowMs);            // keep demo targets fresh
+    updateAisSummary();
     return;
   }
 
@@ -40,10 +75,13 @@ void MarineSource::update(uint32_t nowMs) {
   if (_n2kOn)      { uint32_t r = _n2k.lastRxMs();      if (r > last) { last = r; } }
 #endif
 
+  _ais.prune(nowMs, CFG_AIS_TIMEOUT_MS);   // age out silent targets
+
   // Whole (enabled) bus quiet → clear all (watch → "---" / NO LINK).
   if (last == 0 || (nowMs - last) > CFG_STALE_MS) {
     _data = MarineData();
   }
+  updateAisSummary();
 }
 
 void MarineSource::setDemo(bool on) {
@@ -86,4 +124,10 @@ void MarineSource::printStatus(Stream& s) {
            CFG_NMEAWIFI_TCP ? "TCP" : "UDP",
            CFG_NMEAWIFI_HOST, CFG_NMEAWIFI_PORT,
            _nmeaWifi.connected() ? "up" : "down");
+  if (_guardNm > 0) {
+    s.printf("  AIS     : %d targets, guard %d NM%s\n",
+             _ais.count(), _guardNm, _data.aisAlarm ? " [ALARM]" : "");
+  } else {
+    s.printf("  AIS     : %d targets, guard off\n", _ais.count());
+  }
 }

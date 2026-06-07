@@ -2,6 +2,8 @@
 #include <Arduino.h>
 #include "MarineData.h"
 
+class AisParser;   // forward (AIS sentences are forwarded to it)
+
 // NMEA 0183 listener: reads sentences from a UART and fills MarineData.
 // Parses HDT/HDG (heading), VTG/RMC (COG/SOG), MWV (apparent+true wind),
 // DBT/DPT (depth), MTW (water temp), XTE (cross-track), RMB (bearing/dist).
@@ -13,6 +15,7 @@ class Nmea0183 {
 public:
   void begin(HardwareSerial* port, uint32_t baud, int rxPin, int txPin, MarineData* data);
   void attach(MarineData* data) { _d = data; } // use without a UART (feed externally)
+  void attachAis(AisParser* a) { _ais = a; }    // route !AIVDM/!AIVDO sentences here
   void feed(const uint8_t* data, int len);      // feed bytes from any source (e.g. WiFi)
   void poll();                                  // call often (drains UART, parses)
   uint32_t lastRxMs() const   { return _lastRx; }
@@ -25,6 +28,7 @@ public:
 private:
   HardwareSerial* _ser = nullptr;
   MarineData*     _d   = nullptr;
+  AisParser*      _ais = nullptr;
   char     _buf[110];
   int      _len = 0;
   uint32_t _lastRx = 0, _good = 0, _bad = 0;

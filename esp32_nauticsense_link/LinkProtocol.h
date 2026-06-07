@@ -11,7 +11,7 @@
 // LiveDataSource.mc (applyField).
 enum LinkField {
   F_HDG = 0, F_COG, F_SOG, F_XTE, F_AWA, F_AWS, F_TWA, F_TWS,
-  F_GUST, F_DEPTH, F_TEMP, F_BATT, F_FLAGS, F_COUNT
+  F_GUST, F_DEPTH, F_TEMP, F_BATT, F_AISBRG, F_AISDIST, F_FLAGS, F_COUNT
 };
 
 class LinkProtocol {

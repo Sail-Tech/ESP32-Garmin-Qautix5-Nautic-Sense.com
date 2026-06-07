@@ -3,6 +3,8 @@
 #include "MarineData.h"
 #include "Nmea0183.h"
 
+class AisParser;   // forward
+
 // Receives NMEA 0183 sentences over WiFi (TCP client or UDP listen, chosen by
 // CFG_NMEAWIFI_TCP in config.h) and feeds them to an NMEA0183 parser → MarineData.
 // Requires WiFi to be connected (managed by WifiManager). Typical source: a boat
@@ -10,6 +12,7 @@
 class NmeaWifi {
 public:
   void begin(MarineData* data);
+  void attachAis(AisParser* a) { _parser.attachAis(a); }   // AIS over WiFi too
   void setEnabled(bool on);
   void poll();
 

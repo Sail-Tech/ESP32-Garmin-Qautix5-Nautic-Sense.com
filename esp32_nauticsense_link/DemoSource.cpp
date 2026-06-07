@@ -31,6 +31,11 @@ void DemoSource::update(uint32_t nowMs) {
   _data.anchorAlarm    = ((t % 20) >= 16);
   _data.shallowAlarm   = (_data.depthUnderKeel < 18.0f);
 
+  // OWN POSITION (fixed demo fix off Lisbon) — lets AIS targets be placed.
+  _data.lat = 38.6900f;
+  _data.lon = -9.4000f;
+  _data.vPos = true;
+
   // demo provides every field
   _data.vHeading = _data.vCog = _data.vSog = _data.vXte = _data.vBrg =
   _data.vDtw = _data.vAwa = _data.vAws = _data.vTwa = _data.vTws =

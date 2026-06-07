@@ -109,7 +109,7 @@ class MarineConsoleVenu3View extends WatchUi.View {
         _source.update(_model);
         serviceBacklight();
 
-        var active = (_model.anchorAlarm || _model.shallowAlarm);
+        var active = (_model.anchorAlarm || _model.shallowAlarm || _model.aisAlarm);
         if (active) {
             _clearSinceMs = null;
             if (!_alarmVibrated) {
@@ -172,7 +172,7 @@ class MarineConsoleVenu3View extends WatchUi.View {
     }
 
     function alarmShowing() {
-        return (_model.anchorAlarm || _model.shallowAlarm) && !_alarmAck;
+        return (_model.anchorAlarm || _model.shallowAlarm || _model.aisAlarm) && !_alarmAck;
     }
 
     function onStartButton() {
@@ -197,12 +197,21 @@ class MarineConsoleVenu3View extends WatchUi.View {
     function drawAlarmOverlay(dc) {
         dc.setColor(Gfx.COLOR_RED, Gfx.COLOR_RED);
         dc.fillRectangle(0, 0, _w, _h);
-        var anchor = _model.anchorAlarm;
+        var l1; var l2; var detail = null;
+        if (_model.anchorAlarm) {
+            l1 = "ANCHOR"; l2 = "DRAG";
+        } else if (_model.shallowAlarm) {
+            l1 = "SHALLOW"; l2 = "WATER";
+            detail = "DEPTH " + fmt1(_model.depthUnderKeel) + " m";
+        } else {
+            l1 = "AIS"; l2 = "TARGET";
+            detail = aisNearestStr();
+        }
         txt(dc, cx(), P(60),  Gfx.FONT_MEDIUM, "! ALARM !", Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
-        txt(dc, cx(), P(96),  Gfx.FONT_LARGE,  anchor ? "ANCHOR" : "SHALLOW", Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
-        txt(dc, cx(), P(132), Gfx.FONT_LARGE,  anchor ? "DRAG" : "WATER", Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
-        if (!anchor) {
-            txt(dc, cx(), P(170), Gfx.FONT_SMALL, "DEPTH " + fmt1(_model.depthUnderKeel) + " m", Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
+        txt(dc, cx(), P(96),  Gfx.FONT_LARGE,  l1, Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
+        txt(dc, cx(), P(132), Gfx.FONT_LARGE,  l2, Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
+        if (detail != null) {
+            txt(dc, cx(), P(170), Gfx.FONT_SMALL, detail, Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
         }
         txt(dc, cx(), P(202), Gfx.FONT_TINY, "tap = OK", Gfx.TEXT_JUSTIFY_CENTER, Gfx.COLOR_WHITE);
     }
@@ -494,6 +503,17 @@ class MarineConsoleVenu3View extends WatchUi.View {
     }
 
     // ---- AIS ----
+    // "X.X nm  BBB°" for the closest tracked target (for the alarm overlay).
+    function aisNearestStr() {
+        var t = _model.aisTargets;
+        if (t == null || t.size() == 0) { return "—"; }
+        var bi = 0; var bd = t[0][2];
+        for (var i = 1; i < t.size(); i++) {
+            if (t[i][2] < bd) { bd = t[i][2]; bi = i; }
+        }
+        return fmt1(t[bi][2]) + " nm  " + fmtInt3(t[bi][1]) + "°";
+    }
+
     function drawAisTriangle(dc, x, y, dirDeg, color) {
         var th = dirDeg * Math.PI / 180.0;
         var dx = Math.sin(th);    var dy = -Math.cos(th);
@@ -531,17 +551,13 @@ class MarineConsoleVenu3View extends WatchUi.View {
         dc.setColor(OC_LINE, Gfx.COLOR_TRANSPARENT);
         dc.drawLine(ox, oy, ox, oy - R);
 
-        var tg = [
-            [ 30, 1.5, 210], [ 75, 3.0, 290], [140, 4.5,  10],
-            [200, 7.0,  90], [290, 9.0, 180], [330, 6.0,  45]
-        ];
         var scale = R / 10.0;
-        var j = 0;
-        while (j < 6) {
-            var brg = tg[j][0];
-            var dist = tg[j][1];
-            var crs = tg[j][2];
-            if (dist <= 10) {
+        var tgs = _model.aisTargets;
+        if (isOnline() && tgs != null && tgs.size() > 0) {
+            // REAL: every target the ESP32 streams (entry = [mmsi,brg,dist,cog,ms]).
+            for (var i = 0; i < tgs.size(); i++) {
+                var brg = tgs[i][1]; var dist = tgs[i][2]; var crs = tgs[i][3];
+                if (dist > 10) { continue; }
                 var a = (brg - hdg - 90) * Math.PI / 180.0;
                 var rad = dist * scale;
                 var tx = ox + (Math.cos(a) * rad);
@@ -553,7 +569,24 @@ class MarineConsoleVenu3View extends WatchUi.View {
                     dc.fillCircle(tx, ty, P(3));
                 }
             }
-            j += 1;
+            txt(dc, ox, oy + P(40), Gfx.FONT_TINY, tgs.size().toString() + " TGT",
+                Gfx.TEXT_JUSTIFY_CENTER, OC_CYAN);
+        } else if (!isOnline()) {
+            // OFFLINE: demo targets just to show the standard layout.
+            var tg = [[30,1.5,210],[75,3.0,290],[140,4.5,10],[200,7.0,90],[290,9.0,180],[330,6.0,45]];
+            var j = 0;
+            while (j < 6) {
+                var brg = tg[j][0]; var dist = tg[j][1]; var crs = tg[j][2];
+                var a = (brg - hdg - 90) * Math.PI / 180.0;
+                var rad = dist * scale;
+                var tx = ox + (Math.cos(a) * rad);
+                var ty = oy + (Math.sin(a) * rad);
+                if (dist <= 5.0) { drawAisTriangle(dc, tx, ty, crs - hdg, OC_CYAN); }
+                else { dc.setColor(OC_WHITE, Gfx.COLOR_TRANSPARENT); dc.fillCircle(tx, ty, P(3)); }
+                j += 1;
+            }
+        } else {
+            txt(dc, ox, oy + P(40), Gfx.FONT_TINY, "NO AIS", Gfx.TEXT_JUSTIFY_CENTER, OC_MUTED);
         }
 
         drawAisTriangle(dc, ox, oy, 0, OC_GREEN);

@@ -14,6 +14,16 @@ The ESP32 reads real boat data from **NMEA 0183** (UART), **NMEA 2000** (CAN) or
 **NMEA 0183 over WiFi**, and also has a built-in **demo** source for testing
 without a boat.
 
+## Watch variants
+
+| Variant | Watch | Link | Notes |
+|---|---|---|---|
+| **quatix 5** (`garmin_marine_console_q5_v5/`) | quatix 5 (no generic BLE) | impersonated HR sensor, ~1 byte/s, one-way | the original |
+| **Venu 3** (`garmin_marine_console_venu3/`) | Venu 3 / 3S (generic BLE) | custom GATT service, full frame, **bidirectional** (MOB) | responsive 454px touch UI — see **[README_VENU3.md](README_VENU3.md)** |
+
+Both are fed by the same `esp32_nauticsense_link/` firmware; `CFG_LINK_MODE` in
+`config.h` picks the transport.
+
 ## Demo screens
 
 | Heading (compass) | Apparent wind | True wind |

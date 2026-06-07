@@ -13,8 +13,8 @@ the boat's data and bridging it to the Garmin watch over BLE.
 
 Schematic: **[`nauticsense_link.svg`](nauticsense_link.svg)** (vector) ·
 **[`nauticsense_link.png`](nauticsense_link.png)** (above) · editable
-**[`nauticsense_link.kicad_sch`](nauticsense_link.kicad_sch)** (KiCad 7/8 — parts
-placed; wire per the table below and run ERC).
+**[`nauticsense_link.kicad_sch`](nauticsense_link.kicad_sch)** (KiCad 7/8 — fully
+wired with global labels / net-by-name; open and run ERC).
 
 ```
                     +-------------------+      CTX/CRX     +------------------------+   CAN_H/L
@@ -100,5 +100,7 @@ Baud: 4800 (`CFG_N0183_BAUD`; 38400 for AIS).
 | J2 | NMEA 0183 terminal | talker A/B (+ optional out Y/Z), GND |
 
 > Generated for the NauticSense Link project. The SVG is hand-drawn KiCad-style;
-> the `.kicad_sch` opens in KiCad 7/8 for editing/PCB work (run ERC after wiring,
-> as net labels may need nudging).
+> the `.kicad_sch` opens in KiCad 7/8 with the nets already wired as **global
+> labels** (connection is by matching net name, attached at each pin). Run ERC
+> after opening — power pins fed by labels may raise "no power flag" warnings
+> (harmless; add power symbols if you want a clean ERC before PCB layout).

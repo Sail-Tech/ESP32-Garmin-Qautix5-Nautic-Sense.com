@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "MarineData.h"
 #include "AisTarget.h"
+#include "BeaconFrame.h"   // shared advertising-payload builder + page constants
 
 // Connectionless beacon transport. The dataset is rotated through the BLE
 // advertising payload as manufacturer-specific data (company id
@@ -19,11 +20,7 @@
 // Page 1 (WIND): 6 awa i16 | 8 aws u16*100 | 10 twa i16 | 12 tws u16*100 | 14 gust u16*100
 // Page 2 (ENV):  6 depth u16*100 | 8 temp i16*100 | 10 batt u8
 // Page 3 (AIS):  6 mmsi u32 | 10 brg u16 | 12 dist u16*100 | 14 cog u16   (one target, rotating)
-#define BEACON_MAGIC  0xB5
-#define BEACON_PAGE_NAV  0
-#define BEACON_PAGE_WIND 1
-#define BEACON_PAGE_ENV  2
-#define BEACON_PAGE_AIS  3
+// (magic/page constants and the builder live in BeaconFrame.h)
 
 class BleBeaconLink {
 public:

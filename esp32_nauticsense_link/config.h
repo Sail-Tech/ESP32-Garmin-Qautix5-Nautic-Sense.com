@@ -19,12 +19,16 @@
 //                     ONE Connect IQ app reads it by scanning — no pairing, no
 //                     connection, any number of watches. Works on every generic-
 //                     BLE Garmin (2019+). One-way (no MOB back-channel).
+//   CFG_LINK_HYBRID — beacon telemetry (as above) PLUS a connectable command
+//                     characteristic: the watch reads by scanning and only opens
+//                     a short connection when it needs to send MOB. Best of both.
 #define CFG_LINK_HR        0
 #define CFG_LINK_NATIVE    1
 #define CFG_LINK_BEACON    2
-#define CFG_LINK_MODE      CFG_LINK_HR     // <-- CFG_LINK_NATIVE (Venu3) / CFG_LINK_BEACON
+#define CFG_LINK_HYBRID    3
+#define CFG_LINK_MODE      CFG_LINK_HR     // <-- NATIVE (Venu3) / BEACON / HYBRID
 #define CFG_NATIVE_TX_MS   500             // native link: send a frame this often
-#define CFG_BEACON_MS      250             // beacon: advance to the next page this often
+#define CFG_BEACON_MS      250             // beacon/hybrid: advance to the next page this often
 #define CFG_BEACON_COMPANY 0xFFFF          // BLE company id for manufacturer data (0xFFFF = DIY/test)
 
 // -- NMEA 0183 (UART2) -------------------------------------------------------

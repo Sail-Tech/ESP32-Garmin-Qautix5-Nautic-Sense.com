@@ -6,6 +6,7 @@
 #include "BleHrLink.h"
 #include "BleNauticLink.h"
 #include "BleBeaconLink.h"
+#include "BleHybridLink.h"
 #include "WifiManager.h"
 
 // source = DEMO (simulado) or REAL (NMEA0183 / NMEA2000 / NMEA-over-WiFi),
@@ -21,6 +22,9 @@ static BleNauticLink nauticLink;          // custom BLE GATT service (Venu 3 etc
 #elif CFG_LINK_MODE == CFG_LINK_BEACON
 static BleBeaconLink beaconLink;          // connectionless broadcast (any 2019+ Garmin)
   #define LINK beaconLink
+#elif CFG_LINK_MODE == CFG_LINK_HYBRID
+static BleHybridLink hybridLink;          // beacon telemetry + connectable MOB command
+  #define LINK hybridLink
 #else
 static BleHrLink     bleLink;             // HR-sensor impersonation (quatix 5)
   #define LINK bleLink                    // (not 'link': clashes with POSIX link())
@@ -41,6 +45,8 @@ static void printMenu() {
   Serial.println(F("  Link transport ......... NATIVE BLE GATT (Venu 3 / generic-BLE watches)"));
 #elif CFG_LINK_MODE == CFG_LINK_BEACON
   Serial.println(F("  Link transport ......... BEACON broadcast (any 2019+ generic-BLE Garmin)"));
+#elif CFG_LINK_MODE == CFG_LINK_HYBRID
+  Serial.println(F("  Link transport ......... HYBRID (beacon telemetry + connectable MOB)"));
 #else
   Serial.println(F("  Link transport ......... HR sensor (quatix 5)"));
 #endif
@@ -176,6 +182,21 @@ void loop() {
     beaconLink.update(source.data(), source.ais());
     if (g_showTx) {
       Serial.printf("[tx] beacon page   targets=%d\n", source.ais().count());
+    }
+  }
+#elif CFG_LINK_MODE == CFG_LINK_HYBRID
+  // Hybrid: beacon telemetry + handle a command from a (brief) connection.
+  uint8_t cmd = hybridLink.takeCommand();
+  if (cmd == CMD_MOB) {
+    Serial.println(F("[cmd] MOB (man overboard) from watch"));
+    // Hook: trigger MOB handling here (mark a waypoint, raise an alarm, etc.).
+  }
+  if (now - lastByteMs >= CFG_BEACON_MS) {
+    lastByteMs = now;
+    hybridLink.update(source.data(), source.ais());
+    if (g_showTx) {
+      Serial.printf("[tx] hybrid page   targets=%d  link=%s\n",
+                    source.ais().count(), hybridLink.connected() ? "MOB-conn" : "beacon");
     }
   }
 #else

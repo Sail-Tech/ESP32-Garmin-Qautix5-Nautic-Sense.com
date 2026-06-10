@@ -21,9 +21,11 @@ without a boat.
 | **quatix 5** (`garmin_marine_console_q5_v5/`) | quatix 5 (no generic BLE) | impersonated HR sensor, ~1 byte/s, one-way | the original |
 | **Venu 3** (`garmin_marine_console_venu3/`) | Venu 3 / 3S (generic BLE) | custom GATT service, full frame, **bidirectional** (MOB) | responsive 454px touch UI — see **[README_VENU3.md](README_VENU3.md)** |
 | **Beacon** (`garmin_marine_beacon/`) | **any generic-BLE Garmin, 2019+** | **connectionless** broadcast in the advertising payload, read by scanning | one binary, 90 products (fēnix/epix/Venu/FR/Edge…), one-way — see **[README_BEACON.md](README_BEACON.md)** |
+| **Hybrid** (`garmin_marine_hybrid/`) | **any generic-BLE Garmin, 2019+** | beacon telemetry **+ a brief connection only for MOB** | universal **and** bidirectional — see **[README_HYBRID.md](README_HYBRID.md)** |
 
 All are fed by the same `esp32_nauticsense_link/` firmware; `CFG_LINK_MODE` in
-`config.h` picks the transport (`CFG_LINK_HR` / `CFG_LINK_NATIVE` / `CFG_LINK_BEACON`).
+`config.h` picks the transport (`CFG_LINK_HR` / `CFG_LINK_NATIVE` / `CFG_LINK_BEACON`
+/ `CFG_LINK_HYBRID`).
 
 ## Demo screens
 

@@ -5,6 +5,7 @@
 #include "LinkProtocol.h"
 #include "BleHrLink.h"
 #include "BleNauticLink.h"
+#include "BleBeaconLink.h"
 #include "WifiManager.h"
 
 // source = DEMO (simulado) or REAL (NMEA0183 / NMEA2000 / NMEA-over-WiFi),
@@ -17,6 +18,9 @@ static WifiManager  wifi;
 #if CFG_LINK_MODE == CFG_LINK_NATIVE
 static BleNauticLink nauticLink;          // custom BLE GATT service (Venu 3 etc.)
   #define LINK nauticLink
+#elif CFG_LINK_MODE == CFG_LINK_BEACON
+static BleBeaconLink beaconLink;          // connectionless broadcast (any 2019+ Garmin)
+  #define LINK beaconLink
 #else
 static BleHrLink     bleLink;             // HR-sensor impersonation (quatix 5)
   #define LINK bleLink                    // (not 'link': clashes with POSIX link())
@@ -35,6 +39,8 @@ static void printMenu() {
   Serial.println(F("===== NauticSense Link — Configuration ====="));
 #if CFG_LINK_MODE == CFG_LINK_NATIVE
   Serial.println(F("  Link transport ......... NATIVE BLE GATT (Venu 3 / generic-BLE watches)"));
+#elif CFG_LINK_MODE == CFG_LINK_BEACON
+  Serial.println(F("  Link transport ......... BEACON broadcast (any 2019+ generic-BLE Garmin)"));
 #else
   Serial.println(F("  Link transport ......... HR sensor (quatix 5)"));
 #endif
@@ -161,6 +167,15 @@ void loop() {
       Serial.printf("[tx] frame (%d B) + %d AIS   link=%s\n",
                     NAUTIC_FRAME_LEN, source.ais().count(),
                     nauticLink.connected() ? "UP" : "down");
+    }
+  }
+#elif CFG_LINK_MODE == CFG_LINK_BEACON
+  // Beacon: rotate the dataset through the advertising payload (no connection).
+  if (now - lastByteMs >= CFG_BEACON_MS) {
+    lastByteMs = now;
+    beaconLink.update(source.data(), source.ais());
+    if (g_showTx) {
+      Serial.printf("[tx] beacon page   targets=%d\n", source.ais().count());
     }
   }
 #else

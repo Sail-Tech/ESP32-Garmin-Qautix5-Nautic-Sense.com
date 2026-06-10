@@ -14,10 +14,18 @@
 //   CFG_LINK_NATIVE — Venu 3 and other System 4/5 watches WITH generic BLE:
 //                     expose a custom GATT service, push the whole dataset in
 //                     one frame, and accept commands back (bidirectional).
+//   CFG_LINK_BEACON — connectionless broadcast: the dataset is rotated through
+//                     the BLE advertising payload (manufacturer-specific data).
+//                     ONE Connect IQ app reads it by scanning — no pairing, no
+//                     connection, any number of watches. Works on every generic-
+//                     BLE Garmin (2019+). One-way (no MOB back-channel).
 #define CFG_LINK_HR        0
 #define CFG_LINK_NATIVE    1
-#define CFG_LINK_MODE      CFG_LINK_HR     // <-- set to CFG_LINK_NATIVE for Venu 3
+#define CFG_LINK_BEACON    2
+#define CFG_LINK_MODE      CFG_LINK_HR     // <-- CFG_LINK_NATIVE (Venu3) / CFG_LINK_BEACON
 #define CFG_NATIVE_TX_MS   500             // native link: send a frame this often
+#define CFG_BEACON_MS      250             // beacon: advance to the next page this often
+#define CFG_BEACON_COMPANY 0xFFFF          // BLE company id for manufacturer data (0xFFFF = DIY/test)
 
 // -- NMEA 0183 (UART2) -------------------------------------------------------
 // Wire the boat's 0183 talker to RX. Listen-only (TX is unused).

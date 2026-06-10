@@ -2,7 +2,7 @@
 .DS_Store
 
 # Connect IQ build output (build it locally; .prg is generated)
-garmin_marine_console_*/bin/
+garmin_marine_*/bin/
 
 # Arduino build cache
 build/

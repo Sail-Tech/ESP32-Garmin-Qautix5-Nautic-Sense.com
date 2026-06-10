@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<drawables>
+    <!-- Defines @Drawables.LauncherIcon referenced by manifest.xml.
+         This mapping was missing in V4, so V4 would fail to resolve the
+         launcher icon at build time. -->
+    <bitmap id="LauncherIcon" filename="launcher_icon.png" />
+</drawables>

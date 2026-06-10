@@ -12,6 +12,21 @@ Trade-off vs the connection-based links: it's **one-way** (telemetry only — no
 MOB back-channel), and many watches can read the same beacon at once without
 blocking each other or the ESP32.
 
+## One app, every screen
+
+The same responsive layout scales to each device (the HEADING page across sizes
+and shapes — round watches and rectangular Edge):
+
+![Same app across devices](screens/_devices.png)
+
+All 8 pages + the AIS alarm (rendered at 454 px):
+
+![Beacon screens](screens/_contact_sheet.png)
+
+These are faithful mockups (the app's `P()` = `width/240` scaling) rendered by
+[`screens/render_beacon.py`](screens/render_beacon.py)
+(`python3 screens/render_beacon.py`).
+
 ## How it works
 
 ```
